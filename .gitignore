@@ -1,9 +1,11 @@
 .env
-*.pyc
+.env.*
+*.py[cod]
 __pycache__/
-.env.local
-.venv
+.venv/
 venv/
+.pytest_cache/
 .hypothesis/
 *.db
 *.sqlite
+.streamlit/secrets.toml

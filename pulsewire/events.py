@@ -1,5 +1,4 @@
-import heapq
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum, auto
 from typing import Any
 
@@ -11,20 +10,10 @@ class EventKind(Enum):
     ACK_ARRIVAL = auto()
 
 
-@dataclass
+@dataclass(order=True)
 class Event:
-    kind: EventKind
     time: float
-    seq: int
-    payload: Any = None
-
-    def __lt__(self, other: "Event") -> bool:
-        return (self.time, self.seq) < (other.time, other.seq)
-
-
-def push_event(heap, event: Event):
-    heapq.heappush(heap, event)
-
-
-def pop_event(heap):
-    return heapq.heappop(heap)
+    sequence_number: int
+    kind: EventKind = field(compare=False)
+    packet_id: int | None = field(default=None, compare=False)
+    payload: Any = field(default=None, compare=False)

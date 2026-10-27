@@ -1,2 +1,2 @@
-streamlit
-pytest
+pytest>=8.0
+streamlit>=1.35

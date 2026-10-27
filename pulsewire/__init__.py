@@ -1,8 +1,5 @@
-from pulsewire.models import Packet, SimulationConfig
-from pulsewire.events import Event, EventKind
-from pulsewire.engine import SimulationEngine
+from .engine import SimulationEngine, SimulationResult
+from .metrics import Metrics, calculate_metrics
+from .models import Packet, SimulationConfig
 
-
-def create_engine(config: SimulationConfig) -> SimulationEngine:
-    """Factory function to create a SimulationEngine from a config."""
-    return SimulationEngine(config)
+__all__ = ["Metrics", "Packet", "SimulationConfig", "SimulationEngine", "SimulationResult", "calculate_metrics"]
