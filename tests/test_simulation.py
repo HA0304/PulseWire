@@ -59,7 +59,25 @@ def test_seed_reproducibility():
     assert SimulationEngine(cfg).run().event_trace == SimulationEngine(cfg).run().event_trace
 
 
+def test_zero_rate_has_no_packets():
+    result = SimulationEngine(config(rate_packets_per_sec=0)).run()
+    assert result.packets == []
+    assert result.event_trace == []
+
+
+def test_zero_capacity_buffer_drops_packets():
+    result = SimulationEngine(config(rate_packets_per_sec=2, buffer_size=0)).run()
+    metrics = calculate_metrics(result, 2)
+    assert metrics.generated == metrics.queue_drops == 4
+    assert metrics.delivered == 0
+
+
 @pytest.mark.parametrize("field,value", [("bandwidth_mbps", 0), ("packet_size_bytes", 0), ("loss_probability", 2)])
 def test_invalid_configuration_rejected(field, value):
     with pytest.raises(ValueError):
         SimulationEngine(config(**{field: value}))
+
+
+def test_non_finite_configuration_rejected():
+    with pytest.raises(ValueError, match="finite"):
+        SimulationEngine(config(rate_packets_per_sec=float("nan")))

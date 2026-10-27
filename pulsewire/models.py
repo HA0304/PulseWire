@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+import math
 from typing import Optional
 
 
@@ -44,6 +45,16 @@ class SimulationConfig:
     random_seed: int = 42
 
     def validate(self) -> None:
+        numeric_values = (
+            self.bandwidth_mbps,
+            self.latency_ms,
+            self.packet_size_bytes,
+            self.rate_packets_per_sec,
+            self.loss_probability,
+            self.simulation_horizon_seconds,
+        )
+        if not all(math.isfinite(value) for value in numeric_values):
+            raise ValueError("numeric configuration values must be finite")
         if self.bandwidth_mbps <= 0:
             raise ValueError("bandwidth_mbps must be positive")
         if self.latency_ms < 0:
