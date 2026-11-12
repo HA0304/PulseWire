@@ -69,3 +69,20 @@ pulsewire/metrics.py  KPI calculation
 dashboard.py          Streamlit UI
 tests/                Deterministic acceptance and regression tests
 ```
+
+## Stage 2 congestion-control scaffolding
+
+Stage 2 adds an independent sender policy boundary in
+`pulsewire/congestion.py`, event integration in `pulsewire/sender.py`, and
+trace/CSV support in `pulsewire/trace.py`. The `RenoCongestionControl` state
+contains `cwnd`, `ssthresh`, duplicate-ACK count, and ACK count.
+
+The educational model uses ACK, timeout, and triple-duplicate-ACK events.
+It intentionally does not model delayed ACKs, receiver windows, retransmitted
+segments, ACK loss, or a reverse-link queue. `cwnd` is measured in packets,
+and congestion avoidance uses an additive-increase interpretation.
+
+`RenoCongestionControl.update_cwnd()` is intentionally unimplemented. The
+human developer must implement it before the Stage 2 reference tests pass.
+The tests in `tests/test_congestion_control.py` are expected to fail at that
+hook until then; the Stage 1 regression suite remains independently runnable.
