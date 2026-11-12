@@ -1,0 +1,280 @@
+# PulseWire — Autonomous 90-Minute Engineering Sprint
+
+You are a senior Python systems engineer and autonomous coding agent working inside VS Code with GitHub Copilot Agent Mode.
+
+Your objective is to build **PulseWire**, a functional, deterministic, discrete-event packet network simulator, from scratch within a 90-minute development sprint.
+
+You must implement, test, debug, document, and commit the project incrementally. Do not merely generate source files. Execute the code and verify its behavior.
+
+## 1. Technology Stack
+
+- Python 3.12+
+- Python standard library `heapq` for event scheduling
+- `pytest` for automated testing
+- Streamlit for the interactive dashboard
+- Git and GitHub CLI for version control
+- GitHub Actions for continuous integration
+
+Avoid databases, authentication, Docker, Kubernetes, cloud infrastructure, and unnecessary frameworks.
+
+## 2. Core Simulator Requirements
+
+Implement the following:
+
+**Packet model**
+- Unique packet ID
+- Source and destination
+- Packet size in bytes
+- Creation timestamp
+- Transmission, delivery, and acknowledgment timestamps
+- Packet status
+
+**Discrete-event engine**
+- Priority queue using `heapq`
+- Events ordered by `(simulation_time, sequence_number)`
+- Deterministic ordering for simultaneous events
+- Event types: `PACKET_ARRIVAL`, `TRANSMISSION_COMPLETE`, `PACKET_DELIVERED`, and `ACK_ARRIVAL`
+- Simulated clock, without real sleeps or threads
+- Event trace suitable for visualization and debugging
+
+**Network simulation**
+- Configurable link bandwidth in Mbps
+- Propagation delay in milliseconds
+- Finite FIFO packet buffer
+- Drop-tail queue management
+- Packet generation rate
+- Configurable packet sizes
+- Random packet loss probability
+- Fixed random seed for reproducibility
+- Link serialization: only one packet can transmit at a time
+- Correct queueing, transmission, and propagation delays
+- Simplified acknowledgment mechanism for RTT calculation
+- Clear distinction between queue drops and random channel losses
+
+Use:
+
+`transmission_delay_seconds = packet_size_bytes * 8 / (bandwidth_mbps * 1_000_000)`
+
+Define RTT explicitly, including acknowledgment assumptions. Do not implement TCP congestion control.
+
+## 3. Metrics and Acceptance Tests
+
+Calculate:
+
+- Total packets generated
+- Packets successfully delivered
+- Packets dropped due to queue overflow
+- Packets lost due to random channel loss
+- Delivery ratio
+- Throughput in Mbps
+- Average one-way latency
+- Average RTT
+- Queue occupancy over simulated time
+
+Write automated tests for:
+
+1. Correct event ordering and tie-breaking.
+2. Correct transmission delay.
+3. Correct serialization of multiple packets.
+4. No packet loss under sufficiently low traffic.
+5. Queue overflow under high traffic.
+6. Complete loss when channel loss probability is 100%.
+7. Identical results using the same random seed.
+8. Invalid configuration rejection.
+9. Correct RTT for a deterministic single-packet example.
+10. Packet conservation: generated packets must equal delivered, dropped, lost, or still in flight/queued.
+
+Use analytically calculated expected results for at least one test. Do not make tests pass by hardcoding expected outputs in production code.
+
+## 4. Interactive Dashboard
+
+Create a Streamlit application with:
+
+- Sidebar controls for network configuration
+- Run Simulation button
+- KPI cards for throughput, latency, RTT, delivery ratio, and packet loss
+- Queue occupancy chart
+- Packet delivery/loss visualization
+- Event timeline
+- Packet-level results table
+- CSV export
+
+All visualizations must use actual simulator output. No fabricated metrics.
+
+The interface should be clean, readable, responsive, and suitable for a portfolio demonstration.
+
+## 5. Project Structure
+
+Create:
+
+```text
+PulseWire/
+├── pulsewire/
+│   ├── __init__.py
+│   ├── __main__.py
+│   ├── models.py
+│   ├── events.py
+│   ├── engine.py
+│   └── metrics.py
+├── tests/
+├── dashboard.py
+├── requirements.txt
+├── README.md
+├── AGENTS.md
+├── .gitignore
+└── .github/
+    └── workflows/
+        └── ci.yml
+```
+
+The following commands must work:
+
+```bash
+python -m pulsewire --help
+python -m pulsewire
+python -m streamlit run dashboard.py
+python -m pytest -q
+```
+
+## 6. Mandatory Milestone-Based Git Workflow
+
+Work through the following milestones **sequentially**.
+
+After each completed milestone:
+
+1. Run relevant tests or verification commands.
+2. Review `git status` and `git diff`.
+3. Stage only the relevant files.
+4. Create one meaningful conventional Git commit.
+5. Record the commit hash and verification result.
+6. Continue to the next milestone.
+
+Never create empty commits, combine all milestones into one commit, fabricate passing tests, or rewrite existing commit history.
+
+### Milestone 1 — Minutes 0–10
+
+Initialize the repository, dependencies, Python package, `.gitignore`, and project structure.
+
+Commit:
+
+`chore: initialize PulseWire project`
+
+### Milestone 2 — Minutes 10–25
+
+Implement packet models, events, deterministic event ordering, and priority queue.
+
+Add basic event-ordering tests.
+
+Commit:
+
+`feat: implement discrete-event scheduler`
+
+### Milestone 3 — Minutes 25–40
+
+Implement network transmission, finite queues, link capacity, packet loss, propagation delay, and acknowledgments.
+
+Commit:
+
+`feat: implement packet network simulation`
+
+### Milestone 4 — Minutes 40–50
+
+Implement metrics and deterministic acceptance tests.
+
+Verify mathematical correctness and packet conservation.
+
+Commit:
+
+`test: validate simulation behavior`
+
+### Milestone 5 — Minutes 50–65
+
+Implement the interactive Streamlit dashboard and CSV export.
+
+Commit:
+
+`feat: add interactive network dashboard`
+
+### Milestone 6 — Minutes 65–75
+
+Test edge cases, fix defects, improve validation, and add regression tests.
+
+Commit:
+
+`fix: handle simulation edge cases`
+
+Only create this commit if genuine fixes are needed.
+
+### Milestone 7 — Minutes 75–85
+
+Implement GitHub Actions CI, README, architecture documentation, and example usage.
+
+The GitHub Actions workflow must run on pushes and pull requests, install Python 3.12, install dependencies, run pytest, and verify CLI startup.
+
+Commit:
+
+`ci: add automated tests and documentation`
+
+### Final Verification — Minutes 85–90
+
+- Run the complete pytest suite.
+- Verify CLI execution.
+- Verify Streamlit startup where possible.
+- Inspect the Git history.
+- Confirm that secrets and generated files are excluded.
+- Report any unresolved issues.
+
+Do not push to GitHub or create a remote repository without my explicit approval.
+
+Once approved, use GitHub CLI to create a public repository named `PulseWire` and push the existing commit history.
+
+Check the GitHub Actions result and report whether CI actually passed. Never claim that CI succeeded without checking.
+
+## 7. Autonomous Execution Rules
+
+- Act as an implementation agent, not merely a code suggestion assistant.
+- Create and modify files directly.
+- Run commands and fix errors.
+- Keep architecture modular and understandable.
+- Prioritize correctness over visual polish.
+- Do not add unrelated features.
+- Avoid unnecessary questions unless blocked.
+- Respect permission prompts and never bypass security restrictions.
+- Do not delete unrelated files.
+- Do not expose API keys or credentials.
+- Do not perform destructive Git operations.
+- Do not silently skip failed tests.
+- Do not commit broken functionality as completed work.
+
+If time becomes constrained, prioritize the simulator, deterministic tests, and CI before dashboard enhancements.
+
+## 8. Learning and Time Tracking
+
+Create `DEVELOPMENT_LOG.md` documenting:
+
+- AI-assisted implementation time
+- Independent implementation time, if any
+- Testing and debugging time
+- Major engineering decisions
+- Bugs discovered and corrected
+- Commands actually executed
+- Features completed and deferred
+
+Do not invent time measurements. If actual elapsed time cannot be measured, leave it for me to record.
+
+The separate 30–45-minute NO-AI priority-queue implementation is a personal learning exercise and must not be counted as independently completed merely because you implemented the scheduler using AI.
+
+## 9. Final Deliverables
+
+Provide:
+
+1. A functioning Python simulator.
+2. An interactive Streamlit dashboard.
+3. Automated acceptance tests.
+4. A working GitHub Actions CI workflow.
+5. Seven logical milestone checkpoints where real changes justify them.
+6. A professional README.
+7. A development log.
+8. A final report containing commit hashes, actual test results, startup instructions, and outstanding limitations.
+
+**Begin implementation immediately. Start with the simulator core, verify each milestone, and proceed autonomously until the project is ready for final review.**
