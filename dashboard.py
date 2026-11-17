@@ -2,10 +2,12 @@ import csv
 import io
 
 import streamlit as st
+from streamlit_autorefresh import st_autorefresh
 
 from pulsewire.engine import SimulationEngine
 from pulsewire.metrics import calculate_metrics
 from pulsewire.models import SimulationConfig
+from pulsewire.streaming import StreamSession, StreamStatus, batch_events
 
 
 st.set_page_config(page_title="PulseWire", page_icon="📡", layout="wide")
@@ -93,3 +95,64 @@ if packet_rows:
     writer.writeheader()
     writer.writerows(packet_rows)
 st.download_button("Download packet results CSV", csv_buffer.getvalue(), "pulsewire-packets.csv", "text/csv")
+
+st.subheader("Live event streaming")
+live_col1, live_col2, live_col3, live_col4 = st.columns(4)
+start_live = live_col1.button("Start live stream")
+pause_live = live_col2.button("Pause live stream")
+resume_live = live_col3.button("Resume live stream")
+stop_live = live_col4.button("Stop live stream")
+
+if start_live:
+    live_config = SimulationConfig(
+        bandwidth_mbps=bandwidth,
+        latency_ms=latency,
+        buffer_size=int(buffer_size),
+        packet_size_bytes=int(packet_size),
+        rate_packets_per_sec=max(rate, 1.0),
+        loss_probability=loss,
+        simulation_horizon_seconds=min(horizon, 20.0),
+        random_seed=int(seed),
+        max_event_history=4096,
+    )
+    live_engine = SimulationEngine(live_config)
+    st.session_state.live_session = StreamSession(batch_size=256, buffer_limit=4096)
+    st.session_state.live_session.start()
+    st.session_state.live_engine = live_engine
+    st.session_state.live_iterator = live_engine.iter_events(
+        cancel_check=lambda: st.session_state.live_session.status is StreamStatus.STOPPED
+    )
+    st.session_state.live_batches = []
+    st.session_state.live_event_count = 0
+
+if "live_session" in st.session_state:
+    live_session = st.session_state.live_session
+    if pause_live:
+        live_session.pause()
+    if resume_live:
+        live_session.resume()
+    if stop_live:
+        live_session.stop()
+        st.session_state.live_engine.cancel()
+
+    if live_session.status is StreamStatus.RUNNING:
+        st_autorefresh(interval=100, key="pulsewire-live-refresh")
+        try:
+            events = []
+            for _ in range(live_session.batch_size):
+                events.append(next(st.session_state.live_iterator))
+        except StopIteration:
+            live_session.status = StreamStatus.COMPLETED
+        if events:
+            batch = list(batch_events(events, live_session.batch_size))[0]
+            st.session_state.live_batches.extend(batch.events)
+            st.session_state.live_event_count += len(batch.events)
+            if len(st.session_state.live_batches) > 4096:
+                del st.session_state.live_batches[:-4096]
+
+    st.caption(
+        f"Status: {live_session.status.value} | "
+        f"Events streamed: {st.session_state.live_event_count} | "
+        f"Transport dropped: {st.session_state.live_session.buffer.dropped}"
+    )
+    st.dataframe(st.session_state.live_batches[-1000:], use_container_width=True)

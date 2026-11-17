@@ -2,6 +2,7 @@ import heapq
 import random
 from collections import deque
 from dataclasses import dataclass
+from typing import Callable, Iterator
 
 from .events import Event, EventKind
 from .models import Packet, SimulationConfig
@@ -25,8 +26,9 @@ class SimulationEngine:
         self._packets: dict[int, Packet] = {}
         self._transmitting: Packet | None = None
         self._rng = random.Random(config.random_seed)
-        self._trace: list[dict[str, object]] = []
-        self._occupancy: list[tuple[float, int]] = []
+        self._trace: deque[dict[str, object]] = deque(maxlen=config.max_event_history)
+        self._occupancy: deque[tuple[float, int]] = deque(maxlen=config.max_event_history)
+        self._cancelled = False
 
     @property
     def transmission_delay_seconds(self) -> float:
@@ -37,13 +39,15 @@ class SimulationEngine:
         self._sequence += 1
         heapq.heappush(self._events, event)
 
-    def _record(self, event: Event) -> None:
-        self._trace.append({
+    def _record(self, event: Event) -> dict[str, object]:
+        snapshot = {
             "time": event.time,
             "sequence_number": event.sequence_number,
             "event": event.kind.name,
             "packet_id": event.packet_id,
-        })
+        }
+        self._trace.append(snapshot)
+        return snapshot
 
     def _record_occupancy(self) -> None:
         self._occupancy.append((self._clock, len(self._queue)))
@@ -104,8 +108,9 @@ class SimulationEngine:
         self._packets.clear()
         self._transmitting = None
         self._rng = random.Random(self.config.random_seed)
-        self._trace.clear()
-        self._occupancy.clear()
+        self._trace = deque(maxlen=self.config.max_event_history)
+        self._occupancy = deque(maxlen=self.config.max_event_history)
+        self._cancelled = False
         if self.config.rate_packets_per_sec:
             count = int(self.config.rate_packets_per_sec * self.config.simulation_horizon_seconds)
             for packet_id in range(count):
@@ -115,7 +120,46 @@ class SimulationEngine:
                 self.schedule(EventKind.PACKET_ARRIVAL, creation_time, packet_id)
         while self._events:
             event = heapq.heappop(self._events)
+            if self._cancelled:
+                break
             self._clock = event.time
             self._record(event)
             self._handle(event)
         return SimulationResult(list(self._packets.values()), list(self._trace), list(self._occupancy))
+
+    def cancel(self) -> None:
+        self._cancelled = True
+
+    def iter_events(self, cancel_check: Callable[[], bool] | None = None) -> Iterator[dict[str, object]]:
+        """Yield event snapshots while running; intended for bounded UI transport."""
+        self._prepare_run()
+        while self._events:
+            if cancel_check is not None and cancel_check():
+                self.cancel()
+                break
+            if self._cancelled:
+                break
+            event = heapq.heappop(self._events)
+            self._clock = event.time
+            snapshot = self._record(event)
+            self._handle(event)
+            yield snapshot
+
+    def _prepare_run(self) -> None:
+        self._events.clear()
+        self._sequence = 0
+        self._clock = 0.0
+        self._queue.clear()
+        self._packets.clear()
+        self._transmitting = None
+        self._rng = random.Random(self.config.random_seed)
+        self._trace = deque(maxlen=self.config.max_event_history)
+        self._occupancy = deque(maxlen=self.config.max_event_history)
+        self._cancelled = False
+        if self.config.rate_packets_per_sec:
+            count = int(self.config.rate_packets_per_sec * self.config.simulation_horizon_seconds)
+            for packet_id in range(count):
+                creation_time = packet_id / self.config.rate_packets_per_sec
+                packet = Packet(packet_id, "source", "destination", self.config.packet_size_bytes, creation_time)
+                self._packets[packet_id] = packet
+                self.schedule(EventKind.PACKET_ARRIVAL, creation_time, packet_id)

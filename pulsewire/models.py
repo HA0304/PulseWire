@@ -43,6 +43,7 @@ class SimulationConfig:
     loss_probability: float = 0.0
     simulation_horizon_seconds: float = 10.0
     random_seed: int = 42
+    max_event_history: int = 10000
 
     def validate(self) -> None:
         numeric_values = (
@@ -71,3 +72,5 @@ class SimulationConfig:
             raise ValueError("simulation_horizon_seconds must be positive")
         if not isinstance(self.random_seed, int):
             raise ValueError("random_seed must be an integer")
+        if self.max_event_history <= 0:
+            raise ValueError("max_event_history must be positive")
