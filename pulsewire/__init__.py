@@ -5,6 +5,7 @@ from .congestion import (
     SenderState,
 )
 from .engine import SimulationEngine, SimulationResult
+from .experiments import PRESETS
 from .metrics import Metrics, calculate_metrics
 from .models import Packet, SimulationConfig
 from .sender import TCPSender
@@ -16,6 +17,7 @@ __all__ = [
     "CongestionTraceRecorder",
     "Metrics",
     "Packet",
+    "PRESETS",
     "RenoCongestionControl",
     "SimulationConfig",
     "SimulationEngine",
