@@ -70,6 +70,35 @@ dashboard.py          Streamlit UI
 tests/                Deterministic acceptance and regression tests
 ```
 
+## November backlog walkthrough
+
+The dashboard includes three reproducible experiment presets:
+
+1. **Queue overflow**: 1 Mbps, 1-packet buffer, 1,000 packets/second.
+2. **High RTT**: 200 ms one-way propagation delay with low offered load.
+3. **Packet loss**: 100% channel loss with seed `42`.
+
+Run the dashboard and select a preset from the sidebar:
+
+```bash
+python -m venv .venv
+.venv/bin/python -m pip install -r requirements.txt
+.venv/bin/python -m streamlit run dashboard.py
+```
+
+Use **Start live stream**, **Pause**, **Resume**, or **Stop** to inspect bounded
+event batches. Live data is sampled in groups of 256 events and the UI retains
+at most 4,096 rows.
+
+The topology editor supports node creation and movement, directed link creation
+and selection, removal, and validation of missing, duplicate, and self-linked
+nodes or links. Coordinates are presentation data and are not simulation inputs.
+
+The congestion-window chart is intentionally empty until
+`RenoCongestionControl.update_cwnd()` is implemented; no cwnd values are
+fabricated. Slow start and fast loss behavior remain the human-owned Stage 2
+algorithm scope.
+
 ## Stage 2 congestion-control scaffolding
 
 Stage 2 adds an independent sender policy boundary in

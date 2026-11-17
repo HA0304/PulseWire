@@ -20,3 +20,7 @@ jobs:
         run: python -m pytest -q
       - name: Verify CLI startup
         run: python -m pulsewire --help
+      - name: Verify Streamlit startup
+        run: |
+          timeout 15s python -m streamlit run dashboard.py --server.headless true --server.port 8501 > /tmp/pulsewire-streamlit.log 2>&1 || test $? -eq 124
+          grep -q "You can now view your Streamlit app" /tmp/pulsewire-streamlit.log
