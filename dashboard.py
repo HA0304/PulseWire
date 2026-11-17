@@ -9,6 +9,7 @@ from pulsewire.metrics import calculate_metrics
 from pulsewire.models import SimulationConfig
 from pulsewire.streaming import StreamSession, StreamStatus, batch_events
 from pulsewire.topology import TopologyGraph, TopologyLink, TopologyNode
+from pulsewire.experiments import PRESETS, latency_over_time, throughput_over_time
 
 
 st.set_page_config(page_title="PulseWire", page_icon="📡", layout="wide")
@@ -17,14 +18,37 @@ st.caption("Deterministic discrete-event packet simulation with FIFO drop-tail b
 
 with st.sidebar:
     st.header("Network configuration")
-    bandwidth = st.number_input("Bandwidth (Mbps)", min_value=0.01, value=10.0)
-    latency = st.number_input("Propagation delay (ms)", min_value=0.0, value=10.0)
-    buffer_size = st.number_input("Buffer capacity (packets)", min_value=0, value=10, step=1)
-    packet_size = st.number_input("Packet size (bytes)", min_value=1, value=500, step=1)
-    rate = st.number_input("Generation rate (packets/sec)", min_value=0.0, value=1.0)
-    loss = st.slider("Channel loss probability", 0.0, 1.0, 0.0)
-    horizon = st.number_input("Simulation horizon (seconds)", min_value=0.01, value=10.0)
-    seed = st.number_input("Random seed", value=42, step=1)
+    preset_name = st.selectbox("Experiment preset", ["Custom", *PRESETS.keys()])
+    if preset_name != "Custom":
+        preset = PRESETS[preset_name]
+        st.caption(preset.description)
+        preset_config = preset.config
+        bandwidth = preset_config.bandwidth_mbps
+        latency = preset_config.latency_ms
+        buffer_size = preset_config.buffer_size
+        packet_size = preset_config.packet_size_bytes
+        rate = preset_config.rate_packets_per_sec
+        loss = preset_config.loss_probability
+        horizon = preset_config.simulation_horizon_seconds
+        seed = preset_config.random_seed
+    else:
+        preset_config = None
+        bandwidth = 10.0
+        latency = 10.0
+        buffer_size = 10
+        packet_size = 500
+        rate = 1.0
+        loss = 0.0
+        horizon = 10.0
+        seed = 42
+    bandwidth = st.number_input("Bandwidth (Mbps)", min_value=0.01, value=float(bandwidth))
+    latency = st.number_input("Propagation delay (ms)", min_value=0.0, value=float(latency))
+    buffer_size = st.number_input("Buffer capacity (packets)", min_value=0, value=int(buffer_size), step=1)
+    packet_size = st.number_input("Packet size (bytes)", min_value=1, value=int(packet_size), step=1)
+    rate = st.number_input("Generation rate (packets/sec)", min_value=0.0, value=float(rate))
+    loss = st.slider("Channel loss probability", 0.0, 1.0, float(loss))
+    horizon = st.number_input("Simulation horizon (seconds)", min_value=0.01, value=float(horizon))
+    seed = st.number_input("Random seed", value=int(seed), step=1)
     run = st.button("Run simulation", type="primary")
 
 if run or "result" not in st.session_state:
@@ -67,6 +91,19 @@ st.line_chart(
     x="time",
     y="queued_packets",
 )
+
+st.subheader("Throughput over simulated time")
+st.line_chart(throughput_over_time(result), x="time_s", y="throughput_mbps")
+
+st.subheader("One-way latency over simulated time")
+st.line_chart(latency_over_time(result), x="time_s", y="latency_ms")
+
+st.subheader("Congestion window")
+st.caption(
+    "cwnd is packet-based sender state. The Stage 2 update hook is human-owned; "
+    "the chart remains empty rather than fabricating congestion-window values."
+)
+st.line_chart([], x="time_s", y="cwnd_packets")
 
 st.subheader("Packet outcomes")
 outcomes = {}
