@@ -8,6 +8,7 @@ from pulsewire.engine import SimulationEngine
 from pulsewire.metrics import calculate_metrics
 from pulsewire.models import SimulationConfig
 from pulsewire.streaming import StreamSession, StreamStatus, batch_events
+from pulsewire.topology import TopologyGraph, TopologyLink, TopologyNode
 
 
 st.set_page_config(page_title="PulseWire", page_icon="📡", layout="wide")
@@ -95,6 +96,106 @@ if packet_rows:
     writer.writeheader()
     writer.writerows(packet_rows)
 st.download_button("Download packet results CSV", csv_buffer.getvalue(), "pulsewire-packets.csv", "text/csv")
+
+st.subheader("Topology editor")
+if "topology" not in st.session_state:
+    st.session_state.topology = TopologyGraph(
+        nodes={
+            "source": TopologyNode("source", "Source", 10, 50),
+            "destination": TopologyNode("destination", "Destination", 90, 50),
+        },
+        links={
+            "link-1": TopologyLink("link-1", "source", "destination", bandwidth, latency, int(buffer_size)),
+        },
+    )
+
+topology = st.session_state.topology
+topology_col1, topology_col2 = st.columns(2)
+with topology_col1:
+    new_node_id = st.text_input("New node ID", key="new_node_id")
+    new_node_label = st.text_input("New node label", key="new_node_label")
+    if st.button("Add node") and new_node_id:
+        try:
+            topology.add_node(TopologyNode(new_node_id.strip(), new_node_label.strip() or new_node_id.strip()))
+        except ValueError as exc:
+            st.error(str(exc))
+with topology_col2:
+    node_ids = list(topology.nodes)
+    source_id = st.selectbox("Link source", node_ids, key="topology_source")
+    destination_id = st.selectbox("Link destination", node_ids, key="topology_destination")
+    link_id = st.text_input("Link ID", value="link-new", key="topology_link_id")
+    link_bandwidth = st.number_input("Link bandwidth (Mbps)", min_value=0.01, value=10.0, key="topology_link_bandwidth")
+    link_latency = st.number_input("Link propagation (ms)", min_value=0.0, value=10.0, key="topology_link_latency")
+    link_buffer = st.number_input("Link buffer", min_value=0, value=10, key="topology_link_buffer")
+    if st.button("Add link"):
+        try:
+            topology.add_link(
+                TopologyLink(
+                    link_id.strip(),
+                    source_id,
+                    destination_id,
+                    link_bandwidth,
+                    link_latency,
+                    int(link_buffer),
+                )
+            )
+        except ValueError as exc:
+            st.error(str(exc))
+
+node_rows = [
+    {"node_id": node.node_id, "label": node.label, "x": node.x, "y": node.y}
+    for node in topology.nodes.values()
+]
+edited_nodes = st.data_editor(
+    node_rows,
+    column_config={
+        "node_id": st.column_config.TextColumn(disabled=True),
+        "label": st.column_config.TextColumn(),
+        "x": st.column_config.NumberColumn(min_value=0.0, max_value=100.0),
+        "y": st.column_config.NumberColumn(min_value=0.0, max_value=100.0),
+    },
+    num_rows="fixed",
+    key="topology_nodes_editor",
+)
+for row in edited_nodes:
+    if row["node_id"] in topology.nodes:
+        topology.move_node(row["node_id"], row["x"], row["y"])
+
+link_rows = [
+    {
+        "link_id": link.link_id,
+        "source": link.source,
+        "destination": link.destination,
+        "bandwidth_mbps": link.bandwidth_mbps,
+        "latency_ms": link.latency_ms,
+        "buffer_size": link.buffer_size,
+    }
+    for link in topology.links.values()
+]
+st.dataframe(link_rows, use_container_width=True)
+
+topology_remove_col1, topology_remove_col2 = st.columns(2)
+with topology_remove_col1:
+    if topology.links:
+        selected_link = st.selectbox(
+            "Selected link",
+            [link.link_id for link in topology.links.values()],
+            key="topology_selected_link",
+        )
+        if st.button("Remove selected link"):
+            topology.remove_link(selected_link)
+with topology_remove_col2:
+    if topology.nodes:
+        selected_node = st.selectbox(
+            "Selected node",
+            [node.node_id for node in topology.nodes.values()],
+            key="topology_selected_node",
+        )
+        if st.button("Remove selected node"):
+            try:
+                topology.remove_node(selected_node)
+            except ValueError as exc:
+                st.error(str(exc))
 
 st.subheader("Live event streaming")
 live_col1, live_col2, live_col3, live_col4 = st.columns(4)
